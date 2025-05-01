@@ -19,26 +19,43 @@ def close_connection(exception):
         db.close()
 
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def home():
-    cursor = get_db().cursor()
-    sql ="""
-SELECT CS_Skins.id, Catigory_Wepons.weapon_name, CS_Skins.Wear,
-       CS_Skins.Skin_Name, CS_Skins.Price
-FROM CS_Skins
-JOIN Catigory_Wepons
-ON CS_Skins.Weapon_id = Catigory_Wepons.id
-"""
-    cursor.execute(sql)
+    db = get_db()
+    cursor = db.cursor()
+
+    search_term = request.args.get("search", "")
+
+    if search_term:
+        sql = """
+        SELECT CS_Skins.id, Catigory_Wepons.weapon_name, CS_Skins.Wear,
+               CS_Skins.Skin_Name, CS_Skins.Price
+        FROM CS_Skins
+        JOIN Catigory_Wepons
+        ON CS_Skins.Weapon_id = Catigory_Wepons.id
+        WHERE CS_Skins.Skin_Name LIKE ?
+        OR Catigory_Wepons.weapon_name LIKE ?
+        """
+        like_term = f"%{search_term}%"
+        cursor.execute(sql, (like_term, like_term))
+    else:
+        sql = """
+        SELECT CS_Skins.id, Catigory_Wepons.weapon_name, CS_Skins.Wear,
+               CS_Skins.Skin_Name, CS_Skins.Price
+        FROM CS_Skins
+        JOIN Catigory_Wepons
+        ON CS_Skins.Weapon_id = Catigory_Wepons.id
+        """
+        cursor.execute(sql)
+
     results = cursor.fetchall()
 
-    cur = get_db().cursor()
-    sql = "select * FROM catigory_Wepons" 
+    # Load weapon categories
+    cur = db.cursor()
     cur.execute("SELECT id, weapon_name FROM Catigory_Wepons")
     catigory_Wepons = cur.fetchall()
 
-
-    return render_template("contents.html", results=results, catigory_Wepons=catigory_Wepons)
+    return render_template("contents.html", results=results, catigory_Wepons=catigory_Wepons, search_term=search_term)
 
 @app.route('/add', methods=["GET","POST"])
 def add():
